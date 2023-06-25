@@ -18,7 +18,7 @@ import (
 
 var (
 	envOpener = os.Getenv("OPENER")
-	envEditor = os.Getenv("EDITOR")
+	envEditor = os.Getenv("VISUAL")
 	envPager  = os.Getenv("PAGER")
 	envShell  = os.Getenv("SHELL")
 )
@@ -51,7 +51,10 @@ func init() {
 	}
 
 	if envEditor == "" {
-		envEditor = "vi"
+		envEditor = os.Getenv("EDITOR")
+		if envEditor == "" {
+			envEditor = "vi"
+		}
 	}
 
 	if envPager == "" {
@@ -64,12 +67,19 @@ func init() {
 
 	u, err := user.Current()
 	if err != nil {
+		// When the user is not in /etc/passwd (for e.g. LDAP) and CGO_ENABLED=1 in go env,
+		// the cgo implementation of user.Current() fails even when HOME and USER are set.
+
 		log.Printf("user: %s", err)
 		if os.Getenv("HOME") == "" {
-			log.Print("$HOME variable is empty or not set")
+			panic("$HOME variable is empty or not set")
 		}
 		if os.Getenv("USER") == "" {
-			log.Print("$USER variable is empty or not set")
+			panic("$USER variable is empty or not set")
+		}
+		u = &user.User{
+			Username: os.Getenv("USER"),
+			HomeDir:  os.Getenv("HOME"),
 		}
 	}
 	gUser = u
@@ -152,8 +162,10 @@ func setDefaults() {
 	gOpts.keys["i"] = &execExpr{"$", `$PAGER "$f"`}
 	gOpts.keys["w"] = &execExpr{"$", "$SHELL"}
 
-	gOpts.cmds["doc"] = &execExpr{"$", "lf -doc | $PAGER"}
+	gOpts.cmds["doc"] = &execExpr{"$", `"$lf" -doc | $PAGER`}
 	gOpts.keys["<f-1>"] = &callExpr{"doc", nil, 1}
+
+	gOpts.statfmt = "\033[36m%p\033[0m %c %u %g %s %t %L"
 }
 
 func setUserUmask() {
@@ -180,7 +192,7 @@ func isHidden(f os.FileInfo, path string, hiddenfiles []string) bool {
 func userName(f os.FileInfo) string {
 	if stat, ok := f.Sys().(*syscall.Stat_t); ok {
 		if u, err := user.LookupId(fmt.Sprint(stat.Uid)); err == nil {
-			return fmt.Sprintf("%v ", u.Username)
+			return u.Username
 		}
 	}
 	return ""
@@ -189,7 +201,7 @@ func userName(f os.FileInfo) string {
 func groupName(f os.FileInfo) string {
 	if stat, ok := f.Sys().(*syscall.Stat_t); ok {
 		if g, err := user.LookupGroupId(fmt.Sprint(stat.Gid)); err == nil {
-			return fmt.Sprintf("%v ", g.Name)
+			return g.Name
 		}
 	}
 	return ""
@@ -197,7 +209,7 @@ func groupName(f os.FileInfo) string {
 
 func linkCount(f os.FileInfo) string {
 	if stat, ok := f.Sys().(*syscall.Stat_t); ok {
-		return fmt.Sprintf("%v ", stat.Nlink)
+		return fmt.Sprint(stat.Nlink)
 	}
 	return ""
 }

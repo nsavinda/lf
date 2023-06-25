@@ -1,11 +1,18 @@
 module github.com/gokcehan/lf
 
-go 1.12
+go 1.18
 
 require (
-	github.com/gdamore/tcell/v2 v2.3.1
-	github.com/mattn/go-runewidth v0.0.10
-	golang.org/x/sys v0.0.0-20220209214540-3681064d5158
-	golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d
-	gopkg.in/djherbis/times.v1 v1.2.0
+	github.com/djherbis/times v1.5.0
+	github.com/gdamore/tcell/v2 v2.6.0
+	github.com/mattn/go-runewidth v0.0.14
+	golang.org/x/sys v0.8.0
+	golang.org/x/term v0.8.0
+)
+
+require (
+	github.com/gdamore/encoding v1.0.0 // indirect
+	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
+	github.com/rivo/uniseg v0.4.3 // indirect
+	golang.org/x/text v0.7.0 // indirect
 )

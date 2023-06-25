@@ -20,16 +20,19 @@ type cmdItem struct {
 }
 
 type app struct {
-	ui            *ui
-	nav           *nav
-	ticker        *time.Ticker
-	quitChan      chan struct{}
-	cmd           *exec.Cmd
-	cmdIn         io.WriteCloser
-	cmdOutBuf     []byte
-	cmdHistory    []cmdItem
-	cmdHistoryBeg int
-	cmdHistoryInd int
+	ui             *ui
+	nav            *nav
+	ticker         *time.Ticker
+	quitChan       chan struct{}
+	cmd            *exec.Cmd
+	cmdIn          io.WriteCloser
+	cmdOutBuf      []byte
+	cmdHistory     []cmdItem
+	cmdHistoryBeg  int
+	cmdHistoryInd  int
+	menuCompActive bool
+	menuComps      []string
+	menuCompInd    int
 }
 
 func newApp(ui *ui, nav *nav) *app {
@@ -239,6 +242,7 @@ func (app *app) writeHistory() error {
 // separate goroutines and sent here for update.
 func (app *app) loop() {
 	go app.nav.previewLoop(app.ui)
+	go app.nav.dirPreviewLoop(app.ui)
 
 	var serverChan <-chan expr
 	if !gSingleMode {
@@ -320,6 +324,7 @@ func (app *app) loop() {
 			app.quit()
 
 			app.nav.previewChan <- ""
+			app.nav.dirPreviewChan <- nil
 
 			log.Print("bye!")
 
@@ -384,12 +389,14 @@ func (app *app) loop() {
 			}
 			app.ui.draw(app.nav)
 		case d := <-app.nav.dirChan:
+
 			app.nav.checkDir(d)
 
 			if gOpts.dircache {
 				prev, ok := app.nav.dirCache[d.path]
 				if ok {
 					d.ind = prev.ind
+					d.pos = prev.pos
 					d.sel(prev.name(), app.nav.height)
 				}
 
@@ -407,7 +414,10 @@ func (app *app) loop() {
 			curr, err := app.nav.currFile()
 			if err == nil {
 				if d.path == app.nav.currDir().path {
-					app.ui.loadFile(app.nav, true)
+					app.ui.loadFile(app, true)
+					if app.ui.msg == "" {
+						app.ui.loadFileInfo(app.nav)
+					}
 				}
 				if d.path == curr.path {
 					app.ui.dirPrev = d
@@ -429,7 +439,7 @@ func (app *app) loop() {
 
 			app.ui.draw(app.nav)
 		case ev := <-app.ui.evChan:
-			e := app.ui.readEvent(ev)
+			e := app.ui.readEvent(ev, app.nav)
 			if e == nil {
 				continue
 			}
@@ -438,7 +448,7 @@ func (app *app) loop() {
 			for {
 				select {
 				case ev := <-app.ui.evChan:
-					e = app.ui.readEvent(ev)
+					e = app.ui.readEvent(ev, app.nav)
 					if e == nil {
 						continue
 					}
@@ -456,21 +466,50 @@ func (app *app) loop() {
 			app.ui.draw(app.nav)
 		case <-app.ticker.C:
 			app.nav.renew()
-			app.ui.loadFile(app.nav, false)
+			app.ui.loadFile(app, false)
+			app.ui.draw(app.nav)
+		case <-app.nav.previewTimer.C:
+			app.nav.previewLoading = true
 			app.ui.draw(app.nav)
 		}
 	}
 }
 
+func (app *app) runCmdSync(cmd *exec.Cmd, pause_after bool) {
+	app.nav.previewChan <- ""
+	app.nav.dirPreviewChan <- nil
+
+	if err := app.ui.suspend(); err != nil {
+		log.Printf("suspend: %s", err)
+	}
+	defer func() {
+		if err := app.ui.resume(); err != nil {
+			app.quit()
+			os.Exit(3)
+		}
+	}()
+
+	if err := cmd.Run(); err != nil {
+		app.ui.echoerrf("running shell: %s", err)
+	}
+	if pause_after {
+		anyKey()
+	}
+
+	app.ui.loadFile(app, true)
+	app.nav.renew()
+}
+
 // This function is used to run a shell command. Modes are as follows:
 //
-//     Prefix  Wait  Async  Stdin  Stdout  Stderr  UI action
-//     $       No    No     Yes    Yes     Yes     Pause and then resume
-//     %       No    No     Yes    Yes     Yes     Statline for input/output
-//     !       Yes   No     Yes    Yes     Yes     Pause and then resume
-//     &       No    Yes    No     No      No      Do nothing
+//	Prefix  Wait  Async  Stdin  Stdout  Stderr  UI action
+//	$       No    No     Yes    Yes     Yes     Pause and then resume
+//	%       No    No     Yes    Yes     Yes     Statline for input/output
+//	!       Yes   No     Yes    Yes     Yes     Pause and then resume
+//	&       No    Yes    No     No      No      Do nothing
 func (app *app) runShell(s string, args []string, prefix string) {
 	app.nav.exportFiles()
+	app.ui.exportSizes()
 	exportOpts()
 
 	cmd := shellCommand(s, args)
@@ -483,22 +522,12 @@ func (app *app) runShell(s string, args []string, prefix string) {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 
-		app.nav.previewChan <- ""
-		if err := app.ui.suspend(); err != nil {
-			log.Printf("suspend: %s", err)
-		}
-		defer func() {
-			if err := app.ui.resume(); err != nil {
-				app.quit()
-				os.Exit(3)
-				return
-			}
-		}()
-		defer app.nav.renew()
+		app.runCmdSync(cmd, prefix == "!")
+		return
+	}
 
-		err = cmd.Run()
-	case "%":
-		shellSetPG(cmd)
+	// We are running the command asynchronously
+	if prefix == "%" {
 		if app.ui.cmdPrefix == ">" {
 			return
 		}
@@ -513,22 +542,12 @@ func (app *app) runShell(s string, args []string, prefix string) {
 		}
 		out = stdout
 		cmd.Stderr = cmd.Stdout
-		fallthrough
-	case "&":
-		shellSetPG(cmd)
-		err = cmd.Start()
 	}
 
-	if err != nil {
+	shellSetPG(cmd)
+	if err = cmd.Start(); err != nil {
 		app.ui.echoerrf("running shell: %s", err)
 	}
-
-	switch prefix {
-	case "!":
-		anyKey()
-	}
-
-	app.ui.loadFile(app.nav, true)
 
 	switch prefix {
 	case "%":
@@ -574,4 +593,19 @@ func (app *app) runShell(s string, args []string, prefix string) {
 			}
 		}()
 	}
+
+}
+
+func (app *app) runPagerOn(stdin io.Reader) {
+	app.nav.exportFiles()
+	app.ui.exportSizes()
+	exportOpts()
+
+	cmd := shellCommand(envPager, nil)
+
+	cmd.Stdin = stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	app.runCmdSync(cmd, false)
 }

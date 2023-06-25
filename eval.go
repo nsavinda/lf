@@ -10,263 +10,230 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/gdamore/tcell/v2"
 )
 
 func (e *setExpr) eval(app *app, args []string) {
 	switch e.opt {
 	case "anchorfind":
-		gOpts.anchorfind = true
+		if e.val == "" || e.val == "true" {
+			gOpts.anchorfind = true
+		} else if e.val == "false" {
+			gOpts.anchorfind = false
+		} else {
+			app.ui.echoerr("anchorfind: value should be empty, 'true', or 'false'")
+			return
+		}
 	case "noanchorfind":
+		if e.val != "" {
+			app.ui.echoerrf("noanchorfind: unexpected value: %s", e.val)
+			return
+		}
 		gOpts.anchorfind = false
 	case "anchorfind!":
+		if e.val != "" {
+			app.ui.echoerrf("anchorfind!: unexpected value: %s", e.val)
+			return
+		}
 		gOpts.anchorfind = !gOpts.anchorfind
 	case "autoquit":
-		gOpts.autoquit = true
+		if e.val == "" || e.val == "true" {
+			gOpts.autoquit = true
+		} else if e.val == "false" {
+			gOpts.autoquit = false
+		} else {
+			app.ui.echoerr("autoquit: value should be empty, 'true', or 'false'")
+			return
+		}
 	case "noautoquit":
+		if e.val != "" {
+			app.ui.echoerrf("noautoquit: unexpected value: %s", e.val)
+			return
+		}
 		gOpts.autoquit = false
 	case "autoquit!":
+		if e.val != "" {
+			app.ui.echoerrf("autoquit!: unexpected value: %s", e.val)
+			return
+		}
 		gOpts.autoquit = !gOpts.autoquit
+	case "borderfmt":
+		gOpts.borderfmt = e.val
+	case "cleaner":
+		gOpts.cleaner = replaceTilde(e.val)
+	case "cursoractivefmt":
+		gOpts.cursoractivefmt = e.val
+	case "cursorparentfmt":
+		gOpts.cursorparentfmt = e.val
+	case "cursorpreviewfmt":
+		gOpts.cursorpreviewfmt = e.val
 	case "dircache":
-		gOpts.dircache = true
+		if e.val == "" || e.val == "true" {
+			gOpts.dircache = true
+		} else if e.val == "false" {
+			gOpts.dircache = false
+		} else {
+			app.ui.echoerr("dircache: value should be empty, 'true', or 'false'")
+			return
+		}
 	case "nodircache":
+		if e.val != "" {
+			app.ui.echoerrf("nodircache: unexpected value: %s", e.val)
+			return
+		}
 		gOpts.dircache = false
 	case "dircache!":
+		if e.val != "" {
+			app.ui.echoerrf("dircache!: unexpected value: %s", e.val)
+			return
+		}
 		gOpts.dircache = !gOpts.dircache
 	case "dircounts":
-		gOpts.dircounts = true
+		if e.val == "" || e.val == "true" {
+			gOpts.dircounts = true
+		} else if e.val == "false" {
+			gOpts.dircounts = false
+		} else {
+			app.ui.echoerr("dircounts: value should be empty, 'true', or 'false'")
+			return
+		}
 	case "nodircounts":
+		if e.val != "" {
+			app.ui.echoerrf("nodircounts: unexpected value: %s", e.val)
+			return
+		}
 		gOpts.dircounts = false
 	case "dircounts!":
+		if e.val != "" {
+			app.ui.echoerrf("dircounts!: unexpected value: %s", e.val)
+			return
+		}
 		gOpts.dircounts = !gOpts.dircounts
-	case "dironly":
-		gOpts.dironly = true
-		app.nav.sort()
-		app.nav.position()
-		app.ui.sort()
-		app.ui.loadFile(app.nav, true)
-	case "nodironly":
-		gOpts.dironly = false
-		app.nav.sort()
-		app.nav.position()
-		app.ui.sort()
-		app.ui.loadFile(app.nav, true)
-	case "dironly!":
-		gOpts.dironly = !gOpts.dironly
-		app.nav.sort()
-		app.nav.position()
-		app.ui.sort()
-		app.ui.loadFile(app.nav, true)
 	case "dirfirst":
-		gOpts.sortType.option |= dirfirstSort
+		if e.val == "" || e.val == "true" {
+			gOpts.sortType.option |= dirfirstSort
+		} else if e.val == "false" {
+			gOpts.sortType.option &= ^dirfirstSort
+		} else {
+			app.ui.echoerr("dirfirst: value should be empty, 'true', or 'false'")
+			return
+		}
 		app.nav.sort()
 		app.ui.sort()
 	case "nodirfirst":
+		if e.val != "" {
+			app.ui.echoerrf("nodirfirst: unexpected value: %s", e.val)
+			return
+		}
 		gOpts.sortType.option &= ^dirfirstSort
 		app.nav.sort()
 		app.ui.sort()
 	case "dirfirst!":
+		if e.val != "" {
+			app.ui.echoerrf("dirfirst!: unexpected value: %s", e.val)
+			return
+		}
 		gOpts.sortType.option ^= dirfirstSort
 		app.nav.sort()
 		app.ui.sort()
+	case "dironly":
+		if e.val == "" || e.val == "true" {
+			gOpts.dironly = true
+		} else if e.val == "false" {
+			gOpts.dironly = false
+		} else {
+			app.ui.echoerr("dironly: value should be empty, 'true', or 'false'")
+			return
+		}
+		app.nav.sort()
+		app.nav.position()
+		app.ui.sort()
+		app.ui.loadFile(app, true)
+	case "nodironly":
+		if e.val != "" {
+			app.ui.echoerrf("nodironly: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.dironly = false
+		app.nav.sort()
+		app.nav.position()
+		app.ui.sort()
+		app.ui.loadFile(app, true)
+	case "dironly!":
+		if e.val != "" {
+			app.ui.echoerrf("dironly!: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.dironly = !gOpts.dironly
+		app.nav.sort()
+		app.nav.position()
+		app.ui.sort()
+		app.ui.loadFile(app, true)
+	case "dirpreviews":
+		if e.val == "" || e.val == "true" {
+			gOpts.dirpreviews = true
+		} else if e.val == "false" {
+			gOpts.dirpreviews = false
+		} else {
+			app.ui.echoerr("dirpreviews: value should be empty, 'true', or 'false'")
+			return
+		}
+	case "nodirpreviews":
+		if e.val != "" {
+			app.ui.echoerrf("nodirpreviews: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.dirpreviews = false
+	case "dirpreviews!":
+		if e.val != "" {
+			app.ui.echoerrf("dirpreviews!: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.dirpreviews = !gOpts.dirpreviews
 	case "drawbox":
-		gOpts.drawbox = true
+		if e.val == "" || e.val == "true" {
+			gOpts.drawbox = true
+		} else if e.val == "false" {
+			gOpts.drawbox = false
+		} else {
+			app.ui.echoerr("drawbox: value should be empty, 'true', or 'false'")
+			return
+		}
 		app.ui.renew()
 		if app.nav.height != app.ui.wins[0].h {
 			app.nav.height = app.ui.wins[0].h
 			app.nav.regCache = make(map[string]*reg)
 		}
-		app.ui.loadFile(app.nav, true)
+		app.ui.loadFile(app, true)
 	case "nodrawbox":
+		if e.val != "" {
+			app.ui.echoerrf("nodrawbox: unexpected value: %s", e.val)
+			return
+		}
 		gOpts.drawbox = false
 		app.ui.renew()
 		if app.nav.height != app.ui.wins[0].h {
 			app.nav.height = app.ui.wins[0].h
 			app.nav.regCache = make(map[string]*reg)
 		}
-		app.ui.loadFile(app.nav, true)
+		app.ui.loadFile(app, true)
 	case "drawbox!":
+		if e.val != "" {
+			app.ui.echoerrf("drawbox!: unexpected value: %s", e.val)
+			return
+		}
 		gOpts.drawbox = !gOpts.drawbox
 		app.ui.renew()
 		if app.nav.height != app.ui.wins[0].h {
 			app.nav.height = app.ui.wins[0].h
 			app.nav.regCache = make(map[string]*reg)
 		}
-		app.ui.loadFile(app.nav, true)
-	case "globsearch":
-		gOpts.globsearch = true
-		app.nav.sort()
-		app.ui.sort()
-		app.ui.loadFile(app.nav, true)
-	case "noglobsearch":
-		gOpts.globsearch = false
-		app.nav.sort()
-		app.ui.sort()
-		app.ui.loadFile(app.nav, true)
-	case "globsearch!":
-		gOpts.globsearch = !gOpts.globsearch
-		app.nav.sort()
-		app.ui.sort()
-		app.ui.loadFile(app.nav, true)
-	case "hidden":
-		gOpts.sortType.option |= hiddenSort
-		app.nav.sort()
-		app.nav.position()
-		app.ui.sort()
-		app.ui.loadFile(app.nav, true)
-	case "nohidden":
-		gOpts.sortType.option &= ^hiddenSort
-		app.nav.sort()
-		app.nav.position()
-		app.ui.sort()
-		app.ui.loadFile(app.nav, true)
-	case "hidden!":
-		gOpts.sortType.option ^= hiddenSort
-		app.nav.sort()
-		app.nav.position()
-		app.ui.sort()
-		app.ui.loadFile(app.nav, true)
-	case "history":
-		gOpts.history = true
-	case "nohistory":
-		gOpts.history = false
-	case "history!":
-		gOpts.history = !gOpts.history
-	case "icons":
-		gOpts.icons = true
-	case "noicons":
-		gOpts.icons = false
-	case "icons!":
-		gOpts.icons = !gOpts.icons
-	case "ignorecase":
-		gOpts.ignorecase = true
-		app.nav.sort()
-		app.ui.sort()
-		app.ui.loadFile(app.nav, true)
-	case "noignorecase":
-		gOpts.ignorecase = false
-		app.nav.sort()
-		app.ui.sort()
-		app.ui.loadFile(app.nav, true)
-	case "ignorecase!":
-		gOpts.ignorecase = !gOpts.ignorecase
-		app.nav.sort()
-		app.ui.sort()
-		app.ui.loadFile(app.nav, true)
-	case "ignoredia":
-		gOpts.ignoredia = true
-		app.nav.sort()
-		app.ui.sort()
-	case "noignoredia":
-		gOpts.ignoredia = false
-		app.nav.sort()
-		app.ui.sort()
-	case "ignoredia!":
-		gOpts.ignoredia = !gOpts.ignoredia
-		app.nav.sort()
-		app.ui.sort()
-	case "incfilter":
-		gOpts.incfilter = true
-	case "noincfilter":
-		gOpts.incfilter = false
-	case "incfilter!":
-		gOpts.incfilter = !gOpts.incfilter
-	case "incsearch":
-		gOpts.incsearch = true
-	case "noincsearch":
-		gOpts.incsearch = false
-	case "incsearch!":
-		gOpts.incsearch = !gOpts.incsearch
-	case "mouse":
-		if !gOpts.mouse {
-			gOpts.mouse = true
-			app.ui.screen.EnableMouse()
-		}
-	case "nomouse":
-		if gOpts.mouse {
-			gOpts.mouse = false
-			app.ui.screen.DisableMouse()
-		}
-	case "mouse!":
-		if gOpts.mouse {
-			gOpts.mouse = false
-			app.ui.screen.DisableMouse()
-		} else {
-			gOpts.mouse = true
-			app.ui.screen.EnableMouse()
-		}
-	case "number":
-		gOpts.number = true
-	case "nonumber":
-		gOpts.number = false
-	case "number!":
-		gOpts.number = !gOpts.number
-	case "preview":
-		if len(gOpts.ratios) < 2 {
-			app.ui.echoerr("preview: 'ratios' should consist of at least two numbers before enabling 'preview'")
-			return
-		}
-		gOpts.preview = true
-	case "nopreview":
-		gOpts.preview = false
-	case "preview!":
-		if len(gOpts.ratios) < 2 {
-			app.ui.echoerr("preview: 'ratios' should consist of at least two numbers before enabling 'preview'")
-			return
-		}
-		gOpts.preview = !gOpts.preview
-	case "relativenumber":
-		gOpts.relativenumber = true
-	case "norelativenumber":
-		gOpts.relativenumber = false
-	case "relativenumber!":
-		gOpts.relativenumber = !gOpts.relativenumber
-	case "reverse":
-		gOpts.sortType.option |= reverseSort
-		app.nav.sort()
-		app.ui.sort()
-	case "noreverse":
-		gOpts.sortType.option &= ^reverseSort
-		app.nav.sort()
-		app.ui.sort()
-	case "reverse!":
-		gOpts.sortType.option ^= reverseSort
-		app.nav.sort()
-		app.ui.sort()
-	case "smartcase":
-		gOpts.smartcase = true
-		app.nav.sort()
-		app.ui.sort()
-		app.ui.loadFile(app.nav, true)
-	case "nosmartcase":
-		gOpts.smartcase = false
-		app.nav.sort()
-		app.ui.sort()
-		app.ui.loadFile(app.nav, true)
-	case "smartcase!":
-		gOpts.smartcase = !gOpts.smartcase
-		app.nav.sort()
-		app.ui.sort()
-		app.ui.loadFile(app.nav, true)
-	case "smartdia":
-		gOpts.smartdia = true
-	case "nosmartdia":
-		gOpts.smartdia = false
-	case "smartdia!":
-		gOpts.smartdia = !gOpts.smartdia
-	case "waitmsg":
-		gOpts.waitmsg = e.val
-	case "wrapscan":
-		gOpts.wrapscan = true
-	case "nowrapscan":
-		gOpts.wrapscan = false
-	case "wrapscan!":
-		gOpts.wrapscan = !gOpts.wrapscan
-	case "wrapscroll":
-		gOpts.wrapscroll = true
-	case "nowrapscroll":
-		gOpts.wrapscroll = false
-	case "wrapscroll!":
-		gOpts.wrapscroll = !gOpts.wrapscroll
+		app.ui.loadFile(app, true)
+	case "errorfmt":
+		gOpts.errorfmt = e.val
+	case "filesep":
+		gOpts.filesep = e.val
 	case "findlen":
 		n, err := strconv.Atoi(e.val)
 		if err != nil {
@@ -278,49 +245,69 @@ func (e *setExpr) eval(app *app, args []string) {
 			return
 		}
 		gOpts.findlen = n
-	case "period":
-		n, err := strconv.Atoi(e.val)
-		if err != nil {
-			app.ui.echoerrf("period: %s", err)
-			return
-		}
-		if n < 0 {
-			app.ui.echoerr("period: value should be a non-negative number")
-			return
-		}
-		gOpts.period = n
-		if n == 0 {
-			app.ticker.Stop()
+	case "globsearch":
+		if e.val == "" || e.val == "true" {
+			gOpts.globsearch = true
+		} else if e.val == "false" {
+			gOpts.globsearch = false
 		} else {
-			app.ticker.Stop()
-			app.ticker = time.NewTicker(time.Duration(gOpts.period) * time.Second)
-		}
-	case "scrolloff":
-		n, err := strconv.Atoi(e.val)
-		if err != nil {
-			app.ui.echoerrf("scrolloff: %s", err)
+			app.ui.echoerr("globsearch: value should be empty, 'true', or 'false'")
 			return
 		}
-		if n < 0 {
-			app.ui.echoerr("scrolloff: value should be a non-negative number")
+		app.nav.sort()
+		app.ui.sort()
+		app.ui.loadFile(app, true)
+	case "noglobsearch":
+		if e.val != "" {
+			app.ui.echoerrf("noglobsearch: unexpected value: %s", e.val)
 			return
 		}
-		gOpts.scrolloff = n
-	case "tabstop":
-		n, err := strconv.Atoi(e.val)
-		if err != nil {
-			app.ui.echoerrf("tabstop: %s", err)
+		gOpts.globsearch = false
+		app.nav.sort()
+		app.ui.sort()
+		app.ui.loadFile(app, true)
+	case "globsearch!":
+		if e.val != "" {
+			app.ui.echoerrf("globsearch!: unexpected value: %s", e.val)
 			return
 		}
-		if n <= 0 {
-			app.ui.echoerr("tabstop: value should be a positive number")
+		gOpts.globsearch = !gOpts.globsearch
+		app.nav.sort()
+		app.ui.sort()
+		app.ui.loadFile(app, true)
+	case "hidden":
+		if e.val == "" || e.val == "true" {
+			gOpts.sortType.option |= hiddenSort
+		} else if e.val == "false" {
+			gOpts.sortType.option &= ^hiddenSort
+		} else {
+			app.ui.echoerr("hidden: value should be empty, 'true', or 'false'")
 			return
 		}
-		gOpts.tabstop = n
-	case "errorfmt":
-		gOpts.errorfmt = e.val
-	case "filesep":
-		gOpts.filesep = e.val
+		app.nav.sort()
+		app.nav.position()
+		app.ui.sort()
+		app.ui.loadFile(app, true)
+	case "nohidden":
+		if e.val != "" {
+			app.ui.echoerrf("nohidden: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.sortType.option &= ^hiddenSort
+		app.nav.sort()
+		app.nav.position()
+		app.ui.sort()
+		app.ui.loadFile(app, true)
+	case "hidden!":
+		if e.val != "" {
+			app.ui.echoerrf("hidden!: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.sortType.option ^= hiddenSort
+		app.nav.sort()
+		app.nav.position()
+		app.ui.sort()
+		app.ui.loadFile(app, true)
 	case "hiddenfiles":
 		toks := strings.Split(e.val, ":")
 		for _, s := range toks {
@@ -338,9 +325,150 @@ func (e *setExpr) eval(app *app, args []string) {
 		app.nav.sort()
 		app.nav.position()
 		app.ui.sort()
-		app.ui.loadFile(app.nav, true)
+		app.ui.loadFile(app, true)
+	case "history":
+		if e.val == "" || e.val == "true" {
+			gOpts.history = true
+		} else if e.val == "false" {
+			gOpts.history = false
+		} else {
+			app.ui.echoerr("history: value should be empty, 'true', or 'false'")
+			return
+		}
+	case "nohistory":
+		if e.val != "" {
+			app.ui.echoerrf("nohistory: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.history = false
+	case "history!":
+		if e.val != "" {
+			app.ui.echoerrf("history!: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.history = !gOpts.history
+	case "icons":
+		if e.val == "" || e.val == "true" {
+			gOpts.icons = true
+		} else if e.val == "false" {
+			gOpts.icons = false
+		} else {
+			app.ui.echoerr("icons: value should be empty, 'true', or 'false'")
+			return
+		}
+	case "noicons":
+		if e.val != "" {
+			app.ui.echoerrf("noicons: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.icons = false
+	case "icons!":
+		if e.val != "" {
+			app.ui.echoerrf("icons!: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.icons = !gOpts.icons
 	case "ifs":
 		gOpts.ifs = e.val
+	case "ignorecase":
+		if e.val == "" || e.val == "true" {
+			gOpts.ignorecase = true
+		} else if e.val == "false" {
+			gOpts.ignorecase = false
+		} else {
+			app.ui.echoerr("ignorecase: value should be empty, 'true', or 'false'")
+			return
+		}
+		app.nav.sort()
+		app.ui.sort()
+		app.ui.loadFile(app, true)
+	case "noignorecase":
+		if e.val != "" {
+			app.ui.echoerrf("noignorecase: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.ignorecase = false
+		app.nav.sort()
+		app.ui.sort()
+		app.ui.loadFile(app, true)
+	case "ignorecase!":
+		if e.val != "" {
+			app.ui.echoerrf("ignorecase!: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.ignorecase = !gOpts.ignorecase
+		app.nav.sort()
+		app.ui.sort()
+		app.ui.loadFile(app, true)
+	case "ignoredia":
+		if e.val == "" || e.val == "true" {
+			gOpts.ignoredia = true
+		} else if e.val == "false" {
+			gOpts.ignoredia = false
+		} else {
+			app.ui.echoerr("ignoredia: value should be empty, 'true', or 'false'")
+			return
+		}
+		app.nav.sort()
+		app.ui.sort()
+	case "noignoredia":
+		if e.val != "" {
+			app.ui.echoerrf("noignoredia: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.ignoredia = false
+		app.nav.sort()
+		app.ui.sort()
+	case "ignoredia!":
+		if e.val != "" {
+			app.ui.echoerrf("ignoredia!: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.ignoredia = !gOpts.ignoredia
+		app.nav.sort()
+		app.ui.sort()
+	case "incfilter":
+		if e.val == "" || e.val == "true" {
+			gOpts.incfilter = true
+		} else if e.val == "false" {
+			gOpts.incfilter = false
+		} else {
+			app.ui.echoerr("incfilter: value should be empty, 'true', or 'false'")
+			return
+		}
+	case "noincfilter":
+		if e.val != "" {
+			app.ui.echoerrf("noincfilter: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.incfilter = false
+	case "incfilter!":
+		if e.val != "" {
+			app.ui.echoerrf("incfilter!: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.incfilter = !gOpts.incfilter
+	case "incsearch":
+		if e.val == "" || e.val == "true" {
+			gOpts.incsearch = true
+		} else if e.val == "false" {
+			gOpts.incsearch = false
+		} else {
+			app.ui.echoerr("incsearch: value should be empty, 'true', or 'false'")
+			return
+		}
+	case "noincsearch":
+		if e.val != "" {
+			app.ui.echoerrf("noincsearch: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.incsearch = false
+	case "incsearch!":
+		if e.val != "" {
+			app.ui.echoerrf("incsearch!: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.incsearch = !gOpts.incsearch
 	case "info":
 		if e.val == "" {
 			gOpts.info = nil
@@ -356,10 +484,149 @@ func (e *setExpr) eval(app *app, args []string) {
 			}
 		}
 		gOpts.info = toks
+	case "ruler":
+		if e.val == "" {
+			gOpts.ruler = nil
+			return
+		}
+		toks := strings.Split(e.val, ":")
+		for _, s := range toks {
+			switch s {
+			case "df", "acc", "progress", "selection", "filter", "ind":
+			default:
+				if !strings.HasPrefix(s, "lf_") {
+					app.ui.echoerr("ruler: should consist of 'df', 'acc', 'progress', 'selection', 'filter', 'ind' or 'lf_<option_name>' separated with colon")
+					return
+				}
+			}
+		}
+		gOpts.ruler = toks
+	case "preserve":
+		if e.val == "" {
+			gOpts.preserve = nil
+			return
+		}
+		toks := strings.Split(e.val, ":")
+		for _, s := range toks {
+			switch s {
+			case "mode", "timestamps":
+			default:
+				app.ui.echoerr("preserve: should consist of 'mode' or 'timestamps separated with colon")
+				return
+			}
+		}
+		gOpts.preserve = toks
+	case "infotimefmtnew":
+		gOpts.infotimefmtnew = e.val
+	case "infotimefmtold":
+		gOpts.infotimefmtold = e.val
+	case "mouse":
+		if e.val == "" || e.val == "true" {
+			if !gOpts.mouse {
+				gOpts.mouse = true
+				app.ui.screen.EnableMouse(tcell.MouseButtonEvents)
+			}
+		} else if e.val == "false" {
+			if gOpts.mouse {
+				gOpts.mouse = false
+				app.ui.screen.DisableMouse()
+			}
+		} else {
+			app.ui.echoerr("mouse: value should be empty, 'true', or 'false'")
+			return
+		}
+	case "nomouse":
+		if e.val != "" {
+			app.ui.echoerrf("nomouse: unexpected value: %s", e.val)
+			return
+		}
+		if gOpts.mouse {
+			gOpts.mouse = false
+			app.ui.screen.DisableMouse()
+		}
+	case "mouse!":
+		if e.val != "" {
+			app.ui.echoerrf("mouse!: unexpected value: %s", e.val)
+			return
+		}
+		if gOpts.mouse {
+			gOpts.mouse = false
+			app.ui.screen.DisableMouse()
+		} else {
+			gOpts.mouse = true
+			app.ui.screen.EnableMouse(tcell.MouseButtonEvents)
+		}
+	case "number":
+		if e.val == "" || e.val == "true" {
+			gOpts.number = true
+		} else if e.val == "false" {
+			gOpts.number = false
+		} else {
+			app.ui.echoerr("number: value should be empty, 'true', or 'false'")
+			return
+		}
+	case "nonumber":
+		if e.val != "" {
+			app.ui.echoerrf("nonumber: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.number = false
+	case "number!":
+		if e.val != "" {
+			app.ui.echoerrf("number!: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.number = !gOpts.number
+	case "numberfmt":
+		gOpts.numberfmt = e.val
+	case "period":
+		n, err := strconv.Atoi(e.val)
+		if err != nil {
+			app.ui.echoerrf("period: %s", err)
+			return
+		}
+		if n < 0 {
+			app.ui.echoerr("period: value should be a non-negative number")
+			return
+		}
+		gOpts.period = n
+		if n == 0 {
+			app.ticker.Stop()
+		} else {
+			app.ticker.Stop()
+			app.ticker = time.NewTicker(time.Duration(gOpts.period) * time.Second)
+		}
+	case "preview":
+		if e.val == "" || e.val == "true" {
+			if len(gOpts.ratios) < 2 {
+				app.ui.echoerr("preview: 'ratios' should consist of at least two numbers before enabling 'preview'")
+				return
+			}
+			gOpts.preview = true
+		} else if e.val == "false" {
+			gOpts.preview = false
+		} else {
+			app.ui.echoerr("preview: value should be empty, 'true', or 'false'")
+			return
+		}
+	case "nopreview":
+		if e.val != "" {
+			app.ui.echoerrf("nopreview: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.preview = false
+	case "preview!":
+		if e.val != "" {
+			app.ui.echoerrf("preview!: unexpected value: %s", e.val)
+			return
+		}
+		if len(gOpts.ratios) < 2 {
+			app.ui.echoerr("preview: 'ratios' should consist of at least two numbers before enabling 'preview'")
+			return
+		}
+		gOpts.preview = !gOpts.preview
 	case "previewer":
 		gOpts.previewer = replaceTilde(e.val)
-	case "cleaner":
-		gOpts.cleaner = replaceTilde(e.val)
 	case "promptfmt":
 		gOpts.promptfmt = e.val
 	case "ratios":
@@ -383,7 +650,74 @@ func (e *setExpr) eval(app *app, args []string) {
 		}
 		gOpts.ratios = rats
 		app.ui.wins = getWins(app.ui.screen)
-		app.ui.loadFile(app.nav, true)
+		app.ui.loadFile(app, true)
+	case "relativenumber":
+		if e.val == "" || e.val == "true" {
+			gOpts.relativenumber = true
+		} else if e.val == "false" {
+			gOpts.relativenumber = false
+		} else {
+			app.ui.echoerr("relativenumber: value should be empty, 'true', or 'false'")
+			return
+		}
+	case "norelativenumber":
+		if e.val != "" {
+			app.ui.echoerrf("norelativenumber: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.relativenumber = false
+	case "relativenumber!":
+		if e.val != "" {
+			app.ui.echoerrf("relativenumber!: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.relativenumber = !gOpts.relativenumber
+	case "reverse":
+		if e.val == "" || e.val == "true" {
+			gOpts.sortType.option |= reverseSort
+		} else if e.val == "false" {
+			gOpts.sortType.option &= ^reverseSort
+		} else {
+			app.ui.echoerr("reverse: value should be empty, 'true', or 'false'")
+			return
+		}
+		app.nav.sort()
+		app.ui.sort()
+	case "noreverse":
+		if e.val != "" {
+			app.ui.echoerrf("noreverse: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.sortType.option &= ^reverseSort
+		app.nav.sort()
+		app.ui.sort()
+	case "reverse!":
+		if e.val != "" {
+			app.ui.echoerrf("reverse!: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.sortType.option ^= reverseSort
+		app.nav.sort()
+		app.ui.sort()
+	case "scrolloff":
+		n, err := strconv.Atoi(e.val)
+		if err != nil {
+			app.ui.echoerrf("scrolloff: %s", err)
+			return
+		}
+		if n < 0 {
+			app.ui.echoerr("scrolloff: value should be a non-negative number")
+			return
+		}
+		gOpts.scrolloff = n
+	case "selmode":
+		switch e.val {
+		case "all", "dir":
+			gOpts.selmode = e.val
+		default:
+			app.ui.echoerr("selmode: value should either be 'all' or 'dir'")
+			return
+		}
 	case "shell":
 		gOpts.shell = e.val
 	case "shellflag":
@@ -394,6 +728,57 @@ func (e *setExpr) eval(app *app, args []string) {
 			return
 		}
 		gOpts.shellopts = strings.Split(e.val, ":")
+	case "smartcase":
+		if e.val == "" || e.val == "true" {
+			gOpts.smartcase = true
+		} else if e.val == "false" {
+			gOpts.smartcase = false
+		} else {
+			app.ui.echoerr("smartcase: value should be empty, 'true', or 'false'")
+			return
+		}
+		app.nav.sort()
+		app.ui.sort()
+		app.ui.loadFile(app, true)
+	case "nosmartcase":
+		if e.val != "" {
+			app.ui.echoerrf("nosmartcase: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.smartcase = false
+		app.nav.sort()
+		app.ui.sort()
+		app.ui.loadFile(app, true)
+	case "smartcase!":
+		if e.val != "" {
+			app.ui.echoerrf("smartcase!: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.smartcase = !gOpts.smartcase
+		app.nav.sort()
+		app.ui.sort()
+		app.ui.loadFile(app, true)
+	case "smartdia":
+		if e.val == "" || e.val == "true" {
+			gOpts.smartdia = true
+		} else if e.val == "false" {
+			gOpts.smartdia = false
+		} else {
+			app.ui.echoerr("smartdia: value should be empty, 'true', or 'false'")
+			return
+		}
+	case "nosmartdia":
+		if e.val != "" {
+			app.ui.echoerrf("nosmartdia: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.smartdia = false
+	case "smartdia!":
+		if e.val != "" {
+			app.ui.echoerrf("smartdia!: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.smartdia = !gOpts.smartdia
 	case "sortby":
 		switch e.val {
 		case "natural":
@@ -416,20 +801,29 @@ func (e *setExpr) eval(app *app, args []string) {
 		}
 		app.nav.sort()
 		app.ui.sort()
+	case "statfmt":
+		gOpts.statfmt = e.val
+	case "tabstop":
+		n, err := strconv.Atoi(e.val)
+		if err != nil {
+			app.ui.echoerrf("tabstop: %s", err)
+			return
+		}
+		if n <= 0 {
+			app.ui.echoerr("tabstop: value should be a positive number")
+			return
+		}
+		gOpts.tabstop = n
+	case "tagfmt":
+		gOpts.tagfmt = e.val
 	case "tempmarks":
 		if e.val != "" {
 			gOpts.tempmarks = "'" + e.val
 		} else {
 			gOpts.tempmarks = "'"
 		}
-	case "tagfmt":
-		gOpts.tagfmt = e.val
 	case "timefmt":
 		gOpts.timefmt = e.val
-	case "infotimefmtnew":
-		gOpts.infotimefmtnew = e.val
-	case "infotimefmtold":
-		gOpts.infotimefmtold = e.val
 	case "truncatechar":
 		if runeSliceWidth([]rune(e.val)) != 1 {
 			app.ui.echoerr("truncatechar: value should be a single character")
@@ -437,8 +831,57 @@ func (e *setExpr) eval(app *app, args []string) {
 		}
 
 		gOpts.truncatechar = e.val
+	case "waitmsg":
+		gOpts.waitmsg = e.val
+	case "wrapscan":
+		if e.val == "" || e.val == "true" {
+			gOpts.wrapscan = true
+		} else if e.val == "false" {
+			gOpts.wrapscan = false
+		} else {
+			app.ui.echoerr("wrapscan: value should be empty, 'true', or 'false'")
+			return
+		}
+	case "nowrapscan":
+		if e.val != "" {
+			app.ui.echoerrf("nowrapscan: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.wrapscan = false
+	case "wrapscan!":
+		if e.val != "" {
+			app.ui.echoerrf("wrapscan!: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.wrapscan = !gOpts.wrapscan
+	case "wrapscroll":
+		if e.val == "" || e.val == "true" {
+			gOpts.wrapscroll = true
+		} else if e.val == "false" {
+			gOpts.wrapscroll = false
+		} else {
+			app.ui.echoerr("wrapscroll: value should be empty, 'true', or 'false'")
+			return
+		}
+	case "nowrapscroll":
+		if e.val != "" {
+			app.ui.echoerrf("nowrapscroll: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.wrapscroll = false
+	case "wrapscroll!":
+		if e.val != "" {
+			app.ui.echoerrf("wrapscroll!: unexpected value: %s", e.val)
+			return
+		}
+		gOpts.wrapscroll = !gOpts.wrapscroll
 	default:
-		app.ui.echoerrf("unknown option: %s", e.opt)
+		// any key with the prefix user_ is accepted as a user defined option
+		if strings.HasPrefix(e.opt, "user_") {
+			gOpts.user[e.opt[5:]] = e.val
+		} else {
+			app.ui.echoerrf("unknown option: %s", e.opt)
+		}
 		return
 	}
 	app.ui.loadFileInfo(app.nav)
@@ -484,6 +927,12 @@ func onChdir(app *app) {
 	}
 }
 
+func onSelect(app *app) {
+	if cmd, ok := gOpts.cmds["on-select"]; ok {
+		cmd.eval(app, nil)
+	}
+}
+
 func splitKeys(s string) (keys []string) {
 	for i := 0; i < len(s); {
 		r, w := utf8.DecodeRuneInString(s[i:])
@@ -503,14 +952,64 @@ func splitKeys(s string) (keys []string) {
 	return
 }
 
+func doComplete(app *app) (matches []string) {
+	switch app.ui.cmdPrefix {
+	case ":":
+		matches, app.ui.cmdAccLeft = completeCmd(app.ui.cmdAccLeft)
+	case "/", "?":
+		matches, app.ui.cmdAccLeft = completeFile(app.ui.cmdAccLeft)
+	case "$", "%", "!", "&":
+		matches, app.ui.cmdAccLeft = completeShell(app.ui.cmdAccLeft)
+	}
+	return
+}
+
+func menuComplete(app *app, dir int) {
+	if !app.menuCompActive {
+		toks := tokenize(string(app.ui.cmdAccLeft))
+		for i, tok := range toks {
+			toks[i] = replaceTilde(tok)
+		}
+		app.ui.cmdAccLeft = []rune(strings.Join(toks, " "))
+		app.ui.cmdTmp = app.ui.cmdAccLeft
+		app.menuComps = doComplete(app)
+		if len(app.menuComps) > 1 {
+			app.menuCompInd = -1
+			app.menuCompActive = true
+		}
+	} else {
+		app.menuCompInd += dir
+		if app.menuCompInd == len(app.menuComps) {
+			app.menuCompInd = 0
+		} else if app.menuCompInd < 0 {
+			app.menuCompInd = len(app.menuComps) - 1
+		}
+
+		comp := app.menuComps[app.menuCompInd]
+		toks := tokenize(string(app.ui.cmdTmp))
+		last := toks[len(toks)-1]
+
+		if app.ui.cmdPrefix != "/" && app.ui.cmdPrefix != "?" {
+			comp = escape(comp)
+			_, last = filepath.Split(last)
+		}
+
+		ind := len(app.ui.cmdTmp) - len([]rune(last))
+		app.ui.cmdAccLeft = append(app.ui.cmdTmp[:ind], []rune(comp)...)
+	}
+	app.ui.menuBuf = listMatches(app.ui.screen, app.menuComps, app.menuCompInd)
+}
+
 func update(app *app) {
-	// Remove the current menu buffer
 	app.ui.menuBuf = nil
-	app.ui.menuSelected = -2
+	app.menuCompActive = false
 
 	switch {
 	case gOpts.incsearch && app.ui.cmdPrefix == "/":
 		app.nav.search = string(app.ui.cmdAccLeft) + string(app.ui.cmdAccRight)
+		if app.nav.search == "" {
+			return
+		}
 
 		dir := app.nav.currDir()
 		old := dir.ind
@@ -520,11 +1019,14 @@ func update(app *app) {
 		if _, err := app.nav.searchNext(); err != nil {
 			app.ui.echoerrf("search: %s: %s", err, app.nav.search)
 		} else if old != dir.ind {
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	case gOpts.incsearch && app.ui.cmdPrefix == "?":
 		app.nav.search = string(app.ui.cmdAccLeft) + string(app.ui.cmdAccRight)
+		if app.nav.search == "" {
+			return
+		}
 
 		dir := app.nav.currDir()
 		old := dir.ind
@@ -534,7 +1036,7 @@ func update(app *app) {
 		if _, err := app.nav.searchPrev(); err != nil {
 			app.ui.echoerrf("search: %s: %s", err, app.nav.search)
 		} else if old != dir.ind {
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	case gOpts.incfilter && app.ui.cmdPrefix == "filter: ":
@@ -545,7 +1047,7 @@ func update(app *app) {
 		if err := app.nav.setFilter(strings.Split(filter, " ")); err != nil {
 			app.ui.echoerrf("filter: %s", err)
 		} else if old != dir.ind {
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	}
@@ -570,7 +1072,7 @@ func resetIncCmd(app *app) {
 		dir.pos = app.nav.searchPos
 		if dir.ind != app.nav.searchInd {
 			dir.ind = app.nav.searchInd
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	} else if gOpts.incfilter && app.ui.cmdPrefix == "filter: " {
@@ -578,7 +1080,7 @@ func resetIncCmd(app *app) {
 		old := dir.ind
 		app.nav.setFilter(app.nav.prevFilter)
 		if old != dir.ind {
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	}
@@ -587,12 +1089,12 @@ func resetIncCmd(app *app) {
 func normal(app *app) {
 	resetIncCmd(app)
 
-	app.ui.menuBuf = nil
-	app.ui.menuSelected = -2
+	app.cmdHistoryInd = 0
+	app.menuCompActive = false
 
+	app.ui.menuBuf = nil
 	app.ui.cmdAccLeft = nil
 	app.ui.cmdAccRight = nil
-	app.ui.cmdTmp = nil
 	app.ui.cmdPrefix = ""
 }
 
@@ -612,7 +1114,7 @@ func insert(app *app, arg string) {
 			case 0:
 				app.ui.echoerrf("find: pattern not found: %s", app.nav.find)
 			case 1:
-				app.ui.loadFile(app.nav, true)
+				app.ui.loadFile(app, true)
 				app.ui.loadFileInfo(app.nav)
 			default:
 				app.ui.cmdAccLeft = append(app.ui.cmdAccLeft, []rune(arg)...)
@@ -627,7 +1129,7 @@ func insert(app *app, arg string) {
 			if moved, found := app.nav.findNext(); !found {
 				app.ui.echoerrf("find: pattern not found: %s", app.nav.find)
 			} else if moved {
-				app.ui.loadFile(app.nav, true)
+				app.ui.loadFile(app, true)
 				app.ui.loadFileInfo(app.nav)
 			}
 		}
@@ -641,7 +1143,7 @@ func insert(app *app, arg string) {
 			case 0:
 				app.ui.echoerrf("find-back: pattern not found: %s", app.nav.find)
 			case 1:
-				app.ui.loadFile(app.nav, true)
+				app.ui.loadFile(app, true)
 				app.ui.loadFileInfo(app.nav)
 			default:
 				app.ui.cmdAccLeft = append(app.ui.cmdAccLeft, []rune(arg)...)
@@ -656,7 +1158,7 @@ func insert(app *app, arg string) {
 			if moved, found := app.nav.findPrev(); !found {
 				app.ui.echoerrf("find-back: pattern not found: %s", app.nav.find)
 			} else if moved {
-				app.ui.loadFile(app.nav, true)
+				app.ui.loadFile(app, true)
 				app.ui.loadFileInfo(app.nav)
 			}
 		}
@@ -666,21 +1168,12 @@ func insert(app *app, arg string) {
 		normal(app)
 
 		if arg == "y" {
-			if err := app.nav.del(app.ui); err != nil {
+			if err := app.nav.del(app); err != nil {
 				app.ui.echoerrf("delete: %s", err)
 				return
 			}
 			app.nav.unselect()
-			if gSingleMode {
-				app.nav.renew()
-				app.ui.loadFile(app.nav, true)
-			} else {
-				if err := remote("send load"); err != nil {
-					app.ui.echoerrf("delete: %s", err)
-					return
-				}
-			}
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	case strings.HasPrefix(app.ui.cmdPrefix, "replace"):
@@ -693,14 +1186,14 @@ func insert(app *app, arg string) {
 			}
 			if gSingleMode {
 				app.nav.renew()
-				app.ui.loadFile(app.nav, true)
+				app.ui.loadFile(app, true)
 			} else {
 				if err := remote("send load"); err != nil {
 					app.ui.echoerrf("rename: %s", err)
 					return
 				}
 			}
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	case strings.HasPrefix(app.ui.cmdPrefix, "create"):
@@ -717,14 +1210,14 @@ func insert(app *app, arg string) {
 			}
 			if gSingleMode {
 				app.nav.renew()
-				app.ui.loadFile(app.nav, true)
+				app.ui.loadFile(app, true)
 			} else {
 				if err := remote("send load"); err != nil {
 					app.ui.echoerrf("rename: %s", err)
 					return
 				}
 			}
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	case app.ui.cmdPrefix == "mark-save: ":
@@ -766,7 +1259,7 @@ func insert(app *app, arg string) {
 			app.ui.echoerrf("%s", err)
 			return
 		}
-		app.ui.loadFile(app.nav, true)
+		app.ui.loadFile(app, true)
 		app.ui.loadFileInfo(app.nav)
 
 		if wd != path {
@@ -793,19 +1286,30 @@ func insert(app *app, arg string) {
 				app.ui.echoerrf("mark-remove: %s", err)
 			}
 		}
+	case app.ui.cmdPrefix == ":" && len(app.ui.cmdAccLeft) == 0:
+		switch arg {
+		case "!", "$", "%", "&":
+			app.ui.cmdPrefix = arg
+			return
+		}
+		fallthrough
 	default:
+		app.ui.menuBuf = nil
+		app.menuCompActive = false
 		app.ui.cmdAccLeft = append(app.ui.cmdAccLeft, []rune(arg)...)
 	}
 }
 
 func (e *callExpr) eval(app *app, args []string) {
+	os.Setenv("lf_count", strconv.Itoa(e.count))
+
 	switch e.name {
 	case "up":
 		if !app.nav.init {
 			return
 		}
 		if app.nav.up(e.count) {
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	case "half-up":
@@ -813,7 +1317,7 @@ func (e *callExpr) eval(app *app, args []string) {
 			return
 		}
 		if app.nav.up(e.count * app.nav.height / 2) {
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	case "page-up":
@@ -821,7 +1325,7 @@ func (e *callExpr) eval(app *app, args []string) {
 			return
 		}
 		if app.nav.up(e.count * app.nav.height) {
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	case "scroll-up":
@@ -829,7 +1333,7 @@ func (e *callExpr) eval(app *app, args []string) {
 			return
 		}
 		if app.nav.scrollUp(e.count) {
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	case "down":
@@ -837,7 +1341,7 @@ func (e *callExpr) eval(app *app, args []string) {
 			return
 		}
 		if app.nav.down(e.count) {
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	case "half-down":
@@ -845,7 +1349,7 @@ func (e *callExpr) eval(app *app, args []string) {
 			return
 		}
 		if app.nav.down(e.count * app.nav.height / 2) {
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	case "page-down":
@@ -853,7 +1357,7 @@ func (e *callExpr) eval(app *app, args []string) {
 			return
 		}
 		if app.nav.down(e.count * app.nav.height) {
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	case "scroll-down":
@@ -861,7 +1365,7 @@ func (e *callExpr) eval(app *app, args []string) {
 			return
 		}
 		if app.nav.scrollDown(e.count) {
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	case "updir":
@@ -876,7 +1380,7 @@ func (e *callExpr) eval(app *app, args []string) {
 				return
 			}
 		}
-		app.ui.loadFile(app.nav, true)
+		app.ui.loadFile(app, true)
 		app.ui.loadFileInfo(app.nav)
 		restartIncCmd(app)
 		onChdir(app)
@@ -898,7 +1402,7 @@ func (e *callExpr) eval(app *app, args []string) {
 				app.ui.echoerrf("opening directory: %s", err)
 				return
 			}
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 			restartIncCmd(app)
 			onChdir(app)
@@ -939,7 +1443,7 @@ func (e *callExpr) eval(app *app, args []string) {
 		for i := 0; i < e.count; i++ {
 			app.nav.cdJumpListPrev()
 		}
-		app.ui.loadFile(app.nav, true)
+		app.ui.loadFile(app, true)
 		app.ui.loadFileInfo(app.nav)
 		restartIncCmd(app)
 		onChdir(app)
@@ -949,7 +1453,7 @@ func (e *callExpr) eval(app *app, args []string) {
 		for i := 0; i < e.count; i++ {
 			app.nav.cdJumpListNext()
 		}
-		app.ui.loadFile(app.nav, true)
+		app.ui.loadFile(app, true)
 		app.ui.loadFileInfo(app.nav)
 		restartIncCmd(app)
 		onChdir(app)
@@ -959,16 +1463,30 @@ func (e *callExpr) eval(app *app, args []string) {
 		if !app.nav.init {
 			return
 		}
-		if app.nav.top() {
-			app.ui.loadFile(app.nav, true)
+		var moved bool
+		if e.count == 1 {
+			moved = app.nav.top()
+		} else {
+			moved = app.nav.move(e.count - 1)
+		}
+		if moved {
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	case "bottom":
 		if !app.nav.init {
 			return
 		}
-		if app.nav.bottom() {
-			app.ui.loadFile(app.nav, true)
+		var moved bool
+		if e.count == 1 {
+			// Different from Vim, which would treat a count of 1 as meaning to
+			// move to the first line (i.e. the top)
+			moved = app.nav.bottom()
+		} else {
+			moved = app.nav.move(e.count - 1)
+		}
+		if moved {
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	case "high":
@@ -976,7 +1494,7 @@ func (e *callExpr) eval(app *app, args []string) {
 			return
 		}
 		if app.nav.high() {
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	case "middle":
@@ -984,7 +1502,7 @@ func (e *callExpr) eval(app *app, args []string) {
 			return
 		}
 		if app.nav.middle() {
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	case "low":
@@ -992,7 +1510,7 @@ func (e *callExpr) eval(app *app, args []string) {
 			return
 		}
 		if app.nav.low() {
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	case "toggle":
@@ -1070,6 +1588,11 @@ func (e *callExpr) eval(app *app, args []string) {
 			return
 		}
 		app.nav.invert()
+	case "invert-below":
+		if !app.nav.init {
+			return
+		}
+		app.nav.invertBelow()
 	case "unselect":
 		app.nav.unselect()
 	case "calcdirsize":
@@ -1084,6 +1607,10 @@ func (e *callExpr) eval(app *app, args []string) {
 		app.ui.loadFileInfo(app.nav)
 		app.nav.sort()
 		app.ui.sort()
+	case "clearmaps":
+		// leave `:` and cmaps bound so the user can still exit using `:quit`
+		gOpts.keys = make(map[string]expr)
+		gOpts.keys[":"] = &callExpr{"read", nil, 1}
 	case "copy":
 		if !app.nav.init {
 			return
@@ -1135,11 +1662,11 @@ func (e *callExpr) eval(app *app, args []string) {
 
 		if cmd, ok := gOpts.cmds["paste"]; ok {
 			cmd.eval(app, e.args)
-		} else if err := app.nav.paste(app.ui); err != nil {
+		} else if err := app.nav.paste(app); err != nil {
 			app.ui.echoerrf("paste: %s", err)
 			return
 		}
-		app.ui.loadFile(app.nav, true)
+		app.ui.loadFile(app, true)
 		app.ui.loadFileInfo(app.nav)
 	case "delete":
 		if !app.nav.init {
@@ -1151,7 +1678,7 @@ func (e *callExpr) eval(app *app, args []string) {
 			app.nav.unselect()
 			if gSingleMode {
 				app.nav.renew()
-				app.ui.loadFile(app.nav, true)
+				app.ui.loadFile(app, true)
 			} else {
 				if err := remote("send load"); err != nil {
 					app.ui.echoerrf("delete: %s", err)
@@ -1175,7 +1702,7 @@ func (e *callExpr) eval(app *app, args []string) {
 				app.ui.cmdPrefix = "delete " + strconv.Itoa(len(list)) + " items? [y/N] "
 			}
 		}
-		app.ui.loadFile(app.nav, true)
+		app.ui.loadFile(app, true)
 		app.ui.loadFileInfo(app.nav)
 	case "clear":
 		if !app.nav.init {
@@ -1208,13 +1735,16 @@ func (e *callExpr) eval(app *app, args []string) {
 			app.nav.height = app.ui.wins[0].h
 			app.nav.regCache = make(map[string]*reg)
 		}
-		app.ui.loadFile(app.nav, true)
+		for _, dir := range app.nav.dirs {
+			dir.boundPos(app.nav.height)
+		}
+		app.ui.loadFile(app, true)
 	case "load":
 		if !app.nav.init {
 			return
 		}
 		app.nav.renew()
-		app.ui.loadFile(app.nav, true)
+		app.ui.loadFile(app, true)
 	case "reload":
 		if !app.nav.init {
 			return
@@ -1222,8 +1752,9 @@ func (e *callExpr) eval(app *app, args []string) {
 		if err := app.nav.reload(); err != nil {
 			app.ui.echoerrf("reload: %s", err)
 		}
-		app.ui.loadFile(app.nav, true)
-		app.ui.loadFileInfo(app.nav)
+		app.ui.loadFile(app, true)
+		// clear file information, will be loaded asynchronously
+		app.ui.msg = ""
 	case "read":
 		if app.ui.cmdPrefix == ">" {
 			return
@@ -1289,7 +1820,7 @@ func (e *callExpr) eval(app *app, args []string) {
 			}
 		}
 		if old != dir.ind {
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	case "find-prev":
@@ -1306,7 +1837,7 @@ func (e *callExpr) eval(app *app, args []string) {
 			}
 		}
 		if old != dir.ind {
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		}
 	case "search":
@@ -1346,14 +1877,14 @@ func (e *callExpr) eval(app *app, args []string) {
 				if moved, err := app.nav.searchPrev(); err != nil {
 					app.ui.echoerrf("search-back: %s: %s", err, app.nav.search)
 				} else if moved {
-					app.ui.loadFile(app.nav, true)
+					app.ui.loadFile(app, true)
 					app.ui.loadFileInfo(app.nav)
 				}
 			} else {
 				if moved, err := app.nav.searchNext(); err != nil {
 					app.ui.echoerrf("search: %s: %s", err, app.nav.search)
 				} else if moved {
-					app.ui.loadFile(app.nav, true)
+					app.ui.loadFile(app, true)
 					app.ui.loadFileInfo(app.nav)
 				}
 			}
@@ -1367,14 +1898,14 @@ func (e *callExpr) eval(app *app, args []string) {
 				if moved, err := app.nav.searchNext(); err != nil {
 					app.ui.echoerrf("search-back: %s: %s", err, app.nav.search)
 				} else if moved {
-					app.ui.loadFile(app.nav, true)
+					app.ui.loadFile(app, true)
 					app.ui.loadFileInfo(app.nav)
 				}
 			} else {
 				if moved, err := app.nav.searchPrev(); err != nil {
 					app.ui.echoerrf("search: %s: %s", err, app.nav.search)
 				} else if moved {
-					app.ui.loadFile(app.nav, true)
+					app.ui.loadFile(app, true)
 					app.ui.loadFileInfo(app.nav)
 				}
 			}
@@ -1404,7 +1935,7 @@ func (e *callExpr) eval(app *app, args []string) {
 		if err := app.nav.setFilter(e.args); err != nil {
 			app.ui.echoerrf("filter: %s", err)
 		}
-		app.ui.loadFile(app.nav, true)
+		app.ui.loadFile(app, true)
 		app.ui.loadFileInfo(app.nav)
 	case "mark-save":
 		if app.ui.cmdPrefix == ">" {
@@ -1434,7 +1965,7 @@ func (e *callExpr) eval(app *app, args []string) {
 			cmd.eval(app, e.args)
 			if gSingleMode {
 				app.nav.renew()
-				app.ui.loadFile(app.nav, true)
+				app.ui.loadFile(app, true)
 			} else {
 				if err := remote("send load"); err != nil {
 					app.ui.echoerrf("rename: %s", err)
@@ -1452,9 +1983,16 @@ func (e *callExpr) eval(app *app, args []string) {
 			}
 			normal(app)
 			app.ui.cmdPrefix = "rename: "
-			app.ui.cmdAccLeft = append(app.ui.cmdAccLeft, []rune(curr.Name())...)
+			extension := filepath.Ext(curr.Name())
+			if len(extension) == 0 || extension == curr.Name() {
+				// no extension or .hidden
+				app.ui.cmdAccLeft = append(app.ui.cmdAccLeft, []rune(curr.Name())...)
+			} else {
+				app.ui.cmdAccLeft = append(app.ui.cmdAccLeft, []rune(curr.Name()[:len(curr.Name())-len(extension)])...)
+				app.ui.cmdAccRight = append(app.ui.cmdAccRight, []rune(extension)...)
+			}
 		}
-		app.ui.loadFile(app.nav, true)
+		app.ui.loadFile(app, true)
 		app.ui.loadFileInfo(app.nav)
 	case "sync":
 		if err := app.nav.sync(); err != nil {
@@ -1494,7 +2032,7 @@ func (e *callExpr) eval(app *app, args []string) {
 			return
 		}
 
-		app.ui.loadFile(app.nav, true)
+		app.ui.loadFile(app, true)
 		app.ui.loadFileInfo(app.nav)
 
 		if wd != path {
@@ -1534,7 +2072,7 @@ func (e *callExpr) eval(app *app, args []string) {
 			return
 		}
 
-		app.ui.loadFile(app.nav, true)
+		app.ui.loadFile(app, true)
 		app.ui.loadFileInfo(app.nav)
 
 		if wd != path {
@@ -1586,14 +2124,6 @@ func (e *callExpr) eval(app *app, args []string) {
 		if len(e.args) == 0 {
 			return
 		}
-
-		// Reset the completition menu as in bash/vim
-		// and update the pertinent variables
-		if app.ui.menuBuf != nil {
-			app.ui.menuBuf = nil
-			app.ui.menuSelected = -2
-		}
-
 		insert(app, e.args[0])
 	case "cmd-escape":
 		if app.ui.cmdPrefix == ">" {
@@ -1601,118 +2131,15 @@ func (e *callExpr) eval(app *app, args []string) {
 		}
 		normal(app)
 	case "cmd-complete":
-		var matches []string
-		switch app.ui.cmdPrefix {
-		case ":":
-			matches, app.ui.cmdAccLeft = completeCmd(app.ui.cmdAccLeft)
-		case "/", "?":
-			matches, app.ui.cmdAccLeft = completeFile(app.ui.cmdAccLeft)
-		case "$", "%", "!", "&":
-			matches, app.ui.cmdAccLeft = completeShell(app.ui.cmdAccLeft)
-		default:
-			return
-		}
-
-		app.ui.draw(app.nav)
-
-		// If there are no multiple matches
-		// we do not need to show the list of matches
-		if len(matches) <= 1 {
-			app.ui.menuBuf = nil
-			return
-		}
-
-		if b, err := listMatches(app.ui.screen, matches); err != nil {
-			app.ui.echoerrf("cmd-complete: %s", err)
-		} else {
-			app.ui.menuBuf = b
-		}
+		matches := doComplete(app)
+		app.ui.menuBuf = listMatches(app.ui.screen, matches, -1)
 	case "cmd-menu-complete":
-		var target []rune
-
-		// target will store the current menu query
-		// note that, as we will store the current selected value
-		// in cmdAccLeft, we can not call the complete function with its
-		// value, as it is already a final completition result
-		if app.ui.menuBuf == nil {
-			target = app.ui.cmdAccLeft
-			app.ui.cmdTmp = app.ui.cmdAccLeft
-		} else {
-			target = app.ui.cmdTmp
-		}
-
-		var matches []string
-		switch app.ui.cmdPrefix {
-		case ":":
-			matches, app.ui.cmdAccLeft = completeCmd(target)
-		case "/", "?":
-			matches, app.ui.cmdAccLeft = completeFile(target)
-		case "$", "%", "!", "&":
-			matches, app.ui.cmdAccLeft = completeShell(target)
-		default:
-			return
-		}
-
-		app.ui.draw(app.nav)
-
-		if len(matches) > 1 {
-			step := 1
-
-			// Check if the tab-selecttion was inited
-			if app.ui.menuSelected == -2 {
-				app.ui.menuSelected = -1
-			} else {
-				app.ui.menuSelected = mod(app.ui.menuSelected+step, len(matches))
-			}
-
-			if err := listMatchesMenu(app.ui, matches); err != nil {
-				app.ui.echoerrf("cmd-menu-complete: %s", err)
-			}
-		} else {
-			app.ui.menuBuf = nil
-			app.ui.menuSelected = -2
-		}
+		menuComplete(app, 1)
 	case "cmd-menu-complete-back":
-		var target []rune
-
-		if app.ui.menuBuf == nil {
-			target = app.ui.cmdAccLeft
-			app.ui.cmdTmp = app.ui.cmdAccLeft
-		} else {
-			target = app.ui.cmdTmp
-		}
-
-		var matches []string
-		switch app.ui.cmdPrefix {
-		case ":":
-			matches, app.ui.cmdAccLeft = completeCmd(target)
-		case "/", "?":
-			matches, app.ui.cmdAccLeft = completeFile(target)
-		case "$", "%", "!", "&":
-			matches, app.ui.cmdAccLeft = completeShell(target)
-		default:
-			return
-		}
-
-		app.ui.draw(app.nav)
-
-		if len(matches) > 1 {
-			step := -1
-
-			// Check if the tab-selecttion was inited
-			if app.ui.menuSelected == -2 {
-				app.ui.menuSelected = -1
-			} else {
-				app.ui.menuSelected = mod(app.ui.menuSelected+step, len(matches))
-			}
-
-			if err := listMatchesMenu(app.ui, matches); err != nil {
-				app.ui.echoerrf("cmd-menu-complete-back: %s", err)
-			}
-		} else {
-			app.ui.menuBuf = nil
-			app.ui.menuSelected = -2
-		}
+		menuComplete(app, -1)
+	case "cmd-menu-accept":
+		app.ui.menuBuf = nil
+		app.menuCompActive = false
 	case "cmd-enter":
 		s := string(append(app.ui.cmdAccLeft, app.ui.cmdAccRight...))
 		if len(s) == 0 && app.ui.cmdPrefix != "filter: " {
@@ -1720,11 +2147,10 @@ func (e *callExpr) eval(app *app, args []string) {
 		}
 
 		app.ui.menuBuf = nil
-		app.ui.menuSelected = -2
+		app.menuCompActive = false
 
 		app.ui.cmdAccLeft = nil
 		app.ui.cmdAccRight = nil
-		app.ui.cmdTmp = nil
 
 		switch app.ui.cmdPrefix {
 		case ":":
@@ -1773,7 +2199,7 @@ func (e *callExpr) eval(app *app, args []string) {
 			if _, err := app.nav.searchNext(); err != nil {
 				app.ui.echoerrf("search: %s: %s", err, app.nav.search)
 			} else if old != dir.ind {
-				app.ui.loadFile(app.nav, true)
+				app.ui.loadFile(app, true)
 				app.ui.loadFileInfo(app.nav)
 			}
 		case "?":
@@ -1789,7 +2215,7 @@ func (e *callExpr) eval(app *app, args []string) {
 			if _, err := app.nav.searchPrev(); err != nil {
 				app.ui.echoerrf("search-back: %s: %s", err, app.nav.search)
 			} else if old != dir.ind {
-				app.ui.loadFile(app.nav, true)
+				app.ui.loadFile(app, true)
 				app.ui.loadFileInfo(app.nav)
 			}
 		case "filter: ":
@@ -1798,14 +2224,14 @@ func (e *callExpr) eval(app *app, args []string) {
 			if err := app.nav.setFilter(strings.Split(s, " ")); err != nil {
 				app.ui.echoerrf("filter: %s", err)
 			}
-			app.ui.loadFile(app.nav, true)
+			app.ui.loadFile(app, true)
 			app.ui.loadFileInfo(app.nav)
 		case "find: ":
 			app.ui.cmdPrefix = ""
 			if moved, found := app.nav.findNext(); !found {
 				app.ui.echoerrf("find: pattern not found: %s", app.nav.find)
 			} else if moved {
-				app.ui.loadFile(app.nav, true)
+				app.ui.loadFile(app, true)
 				app.ui.loadFileInfo(app.nav)
 			}
 		case "find-back: ":
@@ -1813,69 +2239,65 @@ func (e *callExpr) eval(app *app, args []string) {
 			if moved, found := app.nav.findPrev(); !found {
 				app.ui.echoerrf("find-back: pattern not found: %s", app.nav.find)
 			} else if moved {
-				app.ui.loadFile(app.nav, true)
+				app.ui.loadFile(app, true)
 				app.ui.loadFileInfo(app.nav)
 			}
 		case "rename: ":
 			app.ui.cmdPrefix = ""
-			if curr, err := app.nav.currFile(); err != nil {
+
+			curr, err := app.nav.currFile()
+			if err != nil {
 				app.ui.echoerrf("rename: %s", err)
-			} else {
-				wd, err := os.Getwd()
-				if err != nil {
-					log.Printf("getting current directory: %s", err)
-					return
-				}
-
-				oldPath := filepath.Join(wd, curr.Name())
-
-				newPath := filepath.Clean(replaceTilde(s))
-				if !filepath.IsAbs(newPath) {
-					newPath = filepath.Join(wd, newPath)
-				}
-
-				if oldPath == newPath {
-					return
-				}
-
-				app.nav.renameOldPath = oldPath
-				app.nav.renameNewPath = newPath
-
-				newDir := filepath.Dir(newPath)
-				if _, err := os.Stat(newDir); os.IsNotExist(err) {
-					app.ui.cmdPrefix = "create '" + newDir + "' ? [y/N] "
-					return
-				}
-
-				oldStat, err := os.Lstat(oldPath)
-				if err != nil {
-					app.ui.echoerrf("rename: %s", err)
-					return
-				}
-
-				if newStat, err := os.Lstat(newPath); !os.IsNotExist(err) && !os.SameFile(oldStat, newStat) {
-					app.ui.cmdPrefix = "replace '" + newPath + "' ? [y/N] "
-					return
-				}
-
-				if err := app.nav.rename(); err != nil {
-					app.ui.echoerrf("rename: %s", err)
-					return
-				}
-
-				if gSingleMode {
-					app.nav.renew()
-					app.ui.loadFile(app.nav, true)
-				} else {
-					if err := remote("send load"); err != nil {
-						app.ui.echoerrf("rename: %s", err)
-						return
-					}
-				}
-
-				app.ui.loadFile(app.nav, true)
-				app.ui.loadFileInfo(app.nav)
+				return
 			}
+			wd, err := os.Getwd()
+			if err != nil {
+				log.Printf("getting current directory: %s", err)
+				return
+			}
+
+			oldPath := filepath.Join(wd, curr.Name())
+			newPath := filepath.Clean(replaceTilde(s))
+			if !filepath.IsAbs(newPath) {
+				newPath = filepath.Join(wd, newPath)
+			}
+			if oldPath == newPath {
+				return
+			}
+			app.nav.renameOldPath = oldPath
+			app.nav.renameNewPath = newPath
+
+			newDir := filepath.Dir(newPath)
+			if _, err := os.Stat(newDir); os.IsNotExist(err) {
+				app.ui.cmdPrefix = "create '" + newDir + "' ? [y/N] "
+				return
+			}
+
+			oldStat, err := os.Lstat(oldPath)
+			if err != nil {
+				app.ui.echoerrf("rename: %s", err)
+				return
+			}
+			if newStat, err := os.Lstat(newPath); !os.IsNotExist(err) && !os.SameFile(oldStat, newStat) {
+				app.ui.cmdPrefix = "replace '" + newPath + "' ? [y/N] "
+				return
+			}
+
+			if err := app.nav.rename(); err != nil {
+				app.ui.echoerrf("rename: %s", err)
+				return
+			}
+
+			if gSingleMode {
+				app.nav.renew()
+			} else {
+				if err := remote("send load"); err != nil {
+					app.ui.echoerrf("rename: %s", err)
+					return
+				}
+			}
+			app.ui.loadFile(app, true)
+			app.ui.loadFileInfo(app.nav)
 		default:
 			log.Printf("entering unknown execution prefix: %q", app.ui.cmdPrefix)
 		}
@@ -1887,31 +2309,27 @@ func (e *callExpr) eval(app *app, args []string) {
 			app.cmdHistoryInd--
 		}
 		if app.cmdHistoryInd == 0 {
-			app.ui.menuBuf = nil
-			app.ui.menuSelected = -2
-			app.ui.cmdAccLeft = nil
-			app.ui.cmdAccRight = nil
-			app.ui.cmdTmp = nil
+			normal(app)
 			app.ui.cmdPrefix = ":"
 			return
 		}
-		cmd := app.cmdHistory[len(app.cmdHistory)-app.cmdHistoryInd]
+		historyInd := app.cmdHistoryInd
+		cmd := app.cmdHistory[len(app.cmdHistory)-historyInd]
 		normal(app)
+		app.cmdHistoryInd = historyInd
 		app.ui.cmdPrefix = cmd.prefix
 		app.ui.cmdAccLeft = []rune(cmd.value)
 	case "cmd-history-prev":
 		if app.ui.cmdPrefix == ">" {
 			return
 		}
-		if app.ui.cmdPrefix == "" {
-			app.cmdHistoryInd = 0
-		}
 		if app.cmdHistoryInd == len(app.cmdHistory) {
 			return
 		}
-		app.cmdHistoryInd++
-		cmd := app.cmdHistory[len(app.cmdHistory)-app.cmdHistoryInd]
+		historyInd := app.cmdHistoryInd + 1
+		cmd := app.cmdHistory[len(app.cmdHistory)-historyInd]
 		normal(app)
+		app.cmdHistoryInd = historyInd
 		app.ui.cmdPrefix = cmd.prefix
 		app.ui.cmdAccLeft = []rune(cmd.value)
 	case "cmd-delete":
@@ -1922,7 +2340,16 @@ func (e *callExpr) eval(app *app, args []string) {
 		update(app)
 	case "cmd-delete-back":
 		if len(app.ui.cmdAccLeft) == 0 {
-			normal(app)
+			switch app.ui.cmdPrefix {
+			case "!", "$", "%", "&":
+				app.ui.cmdPrefix = ":"
+			case ">", "rename: ", "filter: ":
+				// Don't mess with programs waiting for input.
+				// Exiting on backspace is also inconvenient for 'rename' and 'filter',
+				// since the text field can start out nonempty.
+			default:
+				normal(app)
+			}
 			return
 		}
 		app.ui.cmdAccLeft = app.ui.cmdAccLeft[:len(app.ui.cmdAccLeft)-1]
@@ -2095,6 +2522,14 @@ func (e *callExpr) eval(app *app, args []string) {
 
 		app.ui.cmdAccLeft = acc
 		update(app)
+	case "cmds":
+		app.runPagerOn(listCmds())
+	case "maps":
+		app.runPagerOn(listBinds(gOpts.keys))
+	case "cmaps":
+		app.runPagerOn(listBinds(gOpts.cmdkeys))
+	case "jumps":
+		app.runPagerOn(listJumps(app.nav.jumpList, app.nav.jumpListInd))
 	default:
 		cmd, ok := gOpts.cmds[e.name]
 		if !ok {

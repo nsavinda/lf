@@ -79,6 +79,13 @@ func exportEnvVars() {
 	level++
 
 	os.Setenv("LF_LEVEL", strconv.Itoa(level))
+
+	lfPath, err := os.Executable()
+	if err != nil {
+		log.Printf("getting path to lf binary: %s", err)
+		lfPath = "lf"
+	}
+	os.Setenv("lf", lfPath)
 }
 
 // used by exportOpts below
@@ -108,13 +115,14 @@ func fieldToString(field reflect.Value) string {
 	return value
 }
 
-func exportOpts() {
-	e := reflect.ValueOf(&gOpts).Elem()
+func getOptsMap() map[string]string {
+	opts := make(map[string]string)
+	v := reflect.ValueOf(gOpts)
+	t := v.Type()
 
-	for i := 0; i < e.NumField(); i++ {
-		// Get name and prefix it with lf_
-		name := e.Type().Field(i).Name
-		name = fmt.Sprintf("lf_%s", name)
+	for i := 0; i < v.NumField(); i++ {
+		// Get field name and prefix it with lf_
+		name := "lf_" + t.Field(i).Name
 
 		// Skip maps
 		if name == "lf_keys" || name == "lf_cmdkeys" || name == "lf_cmds" {
@@ -142,22 +150,26 @@ func exportOpts() {
 				sortby = "ext"
 			}
 
-			os.Setenv("lf_sortby", sortby)
-
-			reverse := strconv.FormatBool(gOpts.sortType.option&reverseSort != 0)
-			os.Setenv("lf_reverse", reverse)
-
-			hidden := strconv.FormatBool(gOpts.sortType.option&hiddenSort != 0)
-			os.Setenv("lf_hidden", hidden)
-
-			dirfirst := strconv.FormatBool(gOpts.sortType.option&dirfirstSort != 0)
-			os.Setenv("lf_dirfirst", dirfirst)
+			opts["lf_sortby"] = sortby
+			opts["lf_reverse"] = strconv.FormatBool(gOpts.sortType.option&reverseSort != 0)
+			opts["lf_hidden"] = strconv.FormatBool(gOpts.sortType.option&hiddenSort != 0)
+			opts["lf_dirfirst"] = strconv.FormatBool(gOpts.sortType.option&dirfirstSort != 0)
+		} else if name == "lf_user" {
+			// set each user option
+			for key, value := range gOpts.user {
+				opts[name+"_"+key] = value
+			}
 		} else {
-			field := e.Field(i)
-			value := fieldToString(field)
-
-			os.Setenv(name, value)
+			opts[name] = fieldToString(v.Field(i))
 		}
+	}
+
+	return opts
+}
+
+func exportOpts() {
+	for key, value := range getOptsMap() {
+		os.Setenv(key, value)
 	}
 }
 

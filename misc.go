@@ -31,23 +31,26 @@ func runeSliceWidth(rs []rune) int {
 }
 
 func runeSliceWidthRange(rs []rune, beg, end int) []rune {
+	if beg == end {
+		return []rune{}
+	}
+
 	curr := 0
 	b := 0
+	foundb := false
 	for i, r := range rs {
 		w := runewidth.RuneWidth(r)
-		switch {
-		case curr == beg:
+		if curr >= beg && !foundb {
 			b = i
-		case curr < beg && curr+w > beg:
-			b = i + 1
-		case curr == end:
+			foundb = true
+		}
+		if curr == end || curr+w > end {
 			return rs[b:i]
-		case curr > end:
-			return rs[b : i-1]
 		}
 		curr += w
 	}
-	return nil
+
+	return rs[b:]
 }
 
 // This function is used to escape whitespaces and special characters with
@@ -91,7 +94,7 @@ func unescape(s string) string {
 }
 
 // This function splits the given string by whitespaces. It is aware of escaped
-// whitespaces so that they are not splitted unintentionally.
+// whitespaces so that they are not split unintentionally.
 func tokenize(s string) []string {
 	esc := false
 	var buf []rune
@@ -275,7 +278,7 @@ func naturalLess(s1, s2 string) bool {
 	}
 }
 
-var reAltKey = regexp.MustCompile(`<a-(.)>`)
+var reModKey = regexp.MustCompile(`<(c|s|a)-(.+)>`)
 
 var reWord = regexp.MustCompile(`(\pL|\pN)+`)
 var reWordBeg = regexp.MustCompile(`([^\pL\pN]|^)(\pL|\pN)`)
@@ -293,10 +296,6 @@ func max(a, b int) int {
 		return a
 	}
 	return b
-}
-
-func mod(a, b int) int {
-	return (a%b + b) % b
 }
 
 // We don't need no generic code
